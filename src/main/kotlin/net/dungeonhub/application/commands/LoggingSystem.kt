@@ -339,12 +339,11 @@ class LoggingSystem : Extension() {
             QueueStep.Approving
         ) ?: HashSet()
 
-        for ((carrierId, queueEntries) in carryQueues.groupBy { it.carrier.id }) {
+        for ((carrierId, queueEntries) in groupCarryEntriesByCarrier(carryQueues)) {
             val carrier = event.kord.getUser(Snowflake(carrierId))
 
             carrier?.dm {
-                content = "Your ${if (queueEntries.size == 1) "log was" else "logs were"} denied by " +
-                        "${event.interaction.user.mention}."
+                content = denialNotificationContent(queueEntries.size, event.interaction.user.mention)
                 val embed = createCarryOverview(compactCarryEntries(queueEntries), null)
                 embed.color = EmbedColor.Negative.color
                 embeds = mutableListOf(embed)
@@ -386,7 +385,7 @@ class LoggingSystem : Extension() {
 
         val approver = event.interaction.user.id.value.toLong()
 
-        for((carrierId, queueEntries) in carryQueues.groupBy { it.carrier.id }) {
+        for((carrierId, queueEntries) in groupCarryEntriesByCarrier(carryQueues)) {
             logDirectly(carrierId, queueEntries, event.interaction.guild, approver)
         }
 
@@ -526,6 +525,13 @@ class LoggingSystem : Extension() {
             return groups
         }
 
+        fun groupCarryEntriesByCarrier(
+            queueEntries: Collection<CarryQueueModel>
+        ): Map<Long, List<CarryQueueModel>> = queueEntries.groupBy { it.carrier.id }
+
+        fun denialNotificationContent(queueCount: Int, approverMention: String): String =
+            "Your ${if (queueCount == 1) "log was" else "logs were"} denied by $approverMention."
+
         fun sendLoggedDms(carrierId: Long, loggedEntries: Collection<LoggedQueueEntry>, approver: Long?) {
             if(loggedEntries.isEmpty()) return
 
@@ -589,7 +595,7 @@ class LoggingSystem : Extension() {
             }
         }
 
-        private fun createCarryOverview(queueEntries: List<List<CarryQueueModel>>, approver: Long?): EmbedBuilder = buildEmbed {
+        fun createCarryOverview(queueEntries: List<List<CarryQueueModel>>, approver: Long?): EmbedBuilder = buildEmbed {
             val last = queueEntries.last().last()
             timestamp = last.time?.toKotlinInstant()
             title = "Information"
