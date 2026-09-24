@@ -14,12 +14,20 @@ import dev.kordex.core.i18n.toKey
 import net.dungeonhub.application.exceptions.CommandExecutionException
 import dev.kord.common.entity.Snowflake
 import dev.kordex.core.utils.Video
+import io.github.oshai.kotlinlogging.KotlinLogging.logger
+import net.dungeonhub.application.enums.EmbedColor
 import net.dungeonhub.application.enums.ServerProperty
+import net.dungeonhub.application.loader.ClassLoader
 import net.dungeonhub.application.loader.LoadExtension
+import net.dungeonhub.application.service.addEmbed
+import net.dungeonhub.application.service.color
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 
 @LoadExtension
 class CreatePrivateVCCommand : Extension() {
+    private val logger: Logger = LoggerFactory.getLogger(CreatePrivateVCCommand::class.java)
     override val name = "create-vc"
     override suspend fun setup() {
         publicSlashCommand(::CreateVCArgs) {
@@ -100,8 +108,14 @@ class CreatePrivateVCCommand : Extension() {
                         content = "${voiceChannel.mention} has been created successfully!"
                     }
 
-                } catch (e: Exception) {
-                    respond { content = "${e.localizedMessage}" }
+                } catch (exception: Exception) {
+                    logger.error("Error while executing PrivateVC command", exception)
+                    respond {
+                        addEmbed {
+                            description = "Error while executing PrivateVC command."
+                            color(EmbedColor.Negative)
+                        }
+                    }
                 }
             }
         }
