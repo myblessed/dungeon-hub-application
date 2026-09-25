@@ -41,6 +41,15 @@
 .idea/modules.xml
 .idea/*.iml
 .idea/modules
+.idea/copyright/**
+.idea/inspectionProfiles/**
+.idea/queries/**
+.idea/sqldialects.xml
+.idea/webServers.xml
+.idea/deployment.xml
+.idea/db-forest-config.xml
+.idea/dataSources.xml
+.idea/copilot*
 *.iml
 *.ipr
 

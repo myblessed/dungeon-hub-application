@@ -1,8 +1,8 @@
 import dev.kordex.gradle.plugins.kordex.DataCollection
 
 plugins {
-    id("org.jetbrains.kotlin.jvm") version "2.2.20"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
+    id("org.jetbrains.kotlin.jvm") version "2.3.10"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.3.10"
 
     //TODO fix errors
     //id("io.gitlab.arturbosch.detekt") version "1.23.6"
@@ -25,9 +25,9 @@ repositories {
 }
 
 kordEx {
-    kordExVersion = "2.4.1-SNAPSHOT"
+    kordExVersion = "2.5.0-SNAPSHOT"
     kordVersion = "0.19.0-SNAPSHOT"
-    jvmTarget = 21
+    jvmTarget = 25
 
     bot {
         // See https://docs.kordex.dev/data-collection.html
@@ -84,7 +84,7 @@ dependencies {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
     compilerOptions {
         freeCompilerArgs.add("-Xjvm-default=all")
     }

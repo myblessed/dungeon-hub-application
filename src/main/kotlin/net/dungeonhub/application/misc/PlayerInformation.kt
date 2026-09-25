@@ -17,7 +17,7 @@ class PlayerInformation(
     val profiles by lazy {
         apiConnection.getSkyblockProfiles(
             discordUserModel.minecraftId ?: throw NotLinkedWarning()
-        )?.profiles
+        ).valueOrNull?.profiles
     }
 
     val selectedProfiles by lazy {

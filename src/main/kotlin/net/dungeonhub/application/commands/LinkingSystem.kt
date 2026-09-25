@@ -42,6 +42,7 @@ import net.dungeonhub.application.misc.DhScheduler
 import net.dungeonhub.application.service.*
 import net.dungeonhub.connection.DiscordUserConnection
 import net.dungeonhub.exception.PlayerNotFoundException
+import net.dungeonhub.hypixel.client.responses.ValueResponse
 import net.dungeonhub.hypixel.connection.HypixelApiConnection
 import net.dungeonhub.i18n.Translations
 import net.dungeonhub.i18n.Translations.Command.FindUser
@@ -156,12 +157,21 @@ class LinkingSystem : Extension() {
                         respond {
                             val uuid = MojangConnection.getUUIDByName(arguments.ign)
 
-                            val discordUser = HypixelApiConnection().getHypixelLinkedDiscord(uuid)
-                                ?: throw InvalidOptionWarning(
-                                    "ign",
-                                    "Please add the correct discord-account to your hypixel social menu.\n"
-                                            + "To learn more about how to do this, use `/help verification`."
-                                )
+                            val discordUserResponse = HypixelApiConnection().getHypixelLinkedDiscord(uuid)
+
+                            if(discordUserResponse !is ValueResponse) {
+                                addEmbed {
+                                    description = "There was an issue fetching your Hypixel data. Please try again later."
+                                    color(EmbedColor.Negative)
+                                }
+                                return@respond
+                            }
+
+                            val discordUser = discordUserResponse.value ?: throw InvalidOptionWarning(
+                                "ign",
+                                "Please add the correct discord-account to your Hypixel social menu.\n"
+                                        + "To learn more about how to do this, use `/help verification`."
+                            )
 
                             val users = guild!!.requestMembers { query = discordUser; limit = 5 }
                                 .map { it.members }
@@ -224,7 +234,7 @@ class LinkingSystem : Extension() {
                     val guildId = guild!!.id
 
                     respond {
-                        val guild = HypixelApiConnection().getGuild(arguments.guild)
+                        val guild = HypixelApiConnection().getGuild(arguments.guild).valueOrNull
 
                         if (guild == null) {
                             addEmbed {

@@ -76,8 +76,8 @@ class StatusCommand : Extension() {
 
                     val hypixelApiConnection = HypixelApiConnection().withCacheExpiration(2)
 
-                    val session = hypixelApiConnection.getSession(uuid)
-                    val playerData by lazy { hypixelApiConnection.getPlayerData(uuid) }
+                    val session = hypixelApiConnection.getSession(uuid).valueOrNull
+                    val playerData by lazy { hypixelApiConnection.getPlayerData(uuid).valueOrNull }
 
                     if(session == null) {
                         addEmbed {
@@ -146,8 +146,8 @@ class StatusCommand : Extension() {
 
                     val hypixelApiConnection = HypixelApiConnection().withCacheExpiration(2)
 
-                    val session = hypixelApiConnection.getSession(uuid)
-                    val playerData by lazy { hypixelApiConnection.getPlayerData(uuid) }
+                    val session = hypixelApiConnection.getSession(uuid).valueOrNull
+                    val playerData by lazy { hypixelApiConnection.getPlayerData(uuid).valueOrNull }
 
                     if(session == null) {
                         addEmbed {

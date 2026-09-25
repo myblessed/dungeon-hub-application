@@ -19,6 +19,7 @@ import net.dungeonhub.application.service.AutoCompletionService
 import net.dungeonhub.application.service.addEmbed
 import net.dungeonhub.application.service.color
 import net.dungeonhub.connection.DiscordUserConnection
+import net.dungeonhub.hypixel.client.responses.ValueResponse
 import net.dungeonhub.hypixel.connection.HypixelApiConnection
 import net.dungeonhub.i18n.Translations.Command.Player
 import net.dungeonhub.mojang.entity.toUUID
@@ -99,8 +100,19 @@ class PlayerCommand : Extension() {
                     return@action
                 }
 
-                val profiles = HypixelApiConnection().getSkyblockProfiles(discordUser.minecraftId!!)?.profiles
-                if(profiles == null) {
+                val profilesResponse = HypixelApiConnection().getSkyblockProfiles(discordUser.minecraftId!!)
+                if(profilesResponse !is ValueResponse) {
+                    respond {
+                        addEmbed {
+                            description = "An issue occurred while contacting the Hypixel API - please try again later."
+                            color(EmbedColor.Negative)
+                        }
+                    }
+                    return@action
+                }
+
+                val profiles = profilesResponse.value.profiles
+                if(profiles.isEmpty()) {
                     respond {
                         addEmbed {
                             description = "It seems like you don't have any profiles - please try again later."

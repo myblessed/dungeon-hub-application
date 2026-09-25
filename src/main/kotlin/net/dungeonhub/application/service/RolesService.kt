@@ -133,7 +133,7 @@ object RolesService {
 
         val profiles = suspendLazy {
             val uuid = uuid.get() ?: return@suspendLazy null
-            hypixelApiConnection.getSkyblockProfiles(uuid)
+            hypixelApiConnection.getSkyblockProfiles(uuid).valueOrNull
         }
 
         val selectedProfiles = suspendLazy {
@@ -153,21 +153,21 @@ object RolesService {
 
         val playerData = suspendLazy {
             val uuid = uuid.get() ?: return@suspendLazy null
-            hypixelApiConnection.getPlayerData(uuid)
+            hypixelApiConnection.getPlayerData(uuid).valueOrNull
         }
 
         val roleRequirementGuild by lazy {
-            roleRequirement.extraData?.let { HypixelApiConnection().withCacheExpiration(5).getGuild(it) }
+            roleRequirement.extraData?.let { HypixelApiConnection().withCacheExpiration(5).getGuild(it).valueOrNull }
         }
 
         val usersGuild = suspendLazy {
             val uuid = uuid.get() ?: return@suspendLazy null
-            hypixelApiConnection.getPlayerGuild(uuid)
+            hypixelApiConnection.getPlayerGuild(uuid).valueOrNull
         }
 
         val bingoData = suspendLazy {
             val uuid = uuid.get() ?: return@suspendLazy null
-            hypixelApiConnection.getBingoData(uuid)
+            hypixelApiConnection.getBingoData(uuid).valueOrNull
         }
 
         //TODO add check for legendary griffin pet

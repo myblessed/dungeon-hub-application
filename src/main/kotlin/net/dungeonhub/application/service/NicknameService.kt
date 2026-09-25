@@ -16,6 +16,7 @@ import net.dungeonhub.application.misc.DhScheduler
 import net.dungeonhub.application.misc.PlayerInformation
 import net.dungeonhub.connection.DiscordRoleConnection
 import net.dungeonhub.connection.DiscordUserConnection
+import net.dungeonhub.hypixel.client.responses.ValueResponse
 import net.dungeonhub.hypixel.connection.HypixelApiConnection
 import net.dungeonhub.model.discord_role.DiscordRoleModel
 import net.dungeonhub.model.discord_user.DiscordUserModel
@@ -38,7 +39,7 @@ import java.util.regex.Pattern
  *
  * <pre>
  * `NicknameService nicknameService = NicknameService.getInstance();
-` *
+ *
 </pre> *
  */
 object NicknameService {
@@ -51,7 +52,13 @@ object NicknameService {
         val hypixelName = HypixelApiConnection().withCacheExpiration(1).getHypixelLinkedDiscord(uuid)
         val username = user.tag
 
-        if (hypixelName == null) {
+        if(hypixelName !is ValueResponse) {
+            throw InvalidOptionWarning(
+                "Error connecting to Hypixel API, please retry again later."
+            )
+        }
+
+        if (hypixelName.value == null) {
             throw InvalidOptionWarning(
                 "ign", """
      Please add the correct discord-account (`${user.username}`) to your hypixel social menu.
@@ -60,10 +67,10 @@ object NicknameService {
             )
         }
 
-        if (!hypixelName.equals(username, ignoreCase = true)) {
+        if (!hypixelName.value.equals(username, ignoreCase = true)) {
             throw HypixelLinkedToOtherWarning(
                 ign,
-                hypixelName,
+                hypixelName.value!!,
                 user.username
             )
         }

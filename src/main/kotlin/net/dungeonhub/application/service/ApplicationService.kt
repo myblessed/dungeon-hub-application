@@ -40,6 +40,8 @@ import net.dungeonhub.enums.CntRequestType
 import net.dungeonhub.enums.ScoreType
 import net.dungeonhub.enums.WarningAction
 import net.dungeonhub.exception.PlayerNotFoundException
+import net.dungeonhub.hypixel.client.responses.Stale
+import net.dungeonhub.hypixel.client.responses.ValueResponse
 import net.dungeonhub.hypixel.connection.HypixelApiConnection
 import net.dungeonhub.hypixel.entities.skyblock.statsoverview.StatsOverviewType
 import net.dungeonhub.hypixel.service.FormattingService
@@ -403,9 +405,11 @@ object ApplicationService {
 
         val discordUser = DiscordUserConnection.authenticated().findUserByUuid(uuid)
 
-        val statsOverview = HypixelApiConnection().withCacheExpiration(cacheExpiration).getStatsOverview(uuid, profileOverride ?: discordUser?.primarySkyblockProfile, statsOverviewTypes)
+        val statsOverviewResponse = HypixelApiConnection().withCacheExpiration(cacheExpiration).getStatsOverview(uuid, profileOverride ?: discordUser?.primarySkyblockProfile, statsOverviewTypes)
 
-        if (statsOverview == null) {
+        val statsOverview = statsOverviewResponse.valueOrNull
+
+        if (statsOverviewResponse !is ValueResponse || statsOverview == null) {
             embed.description = "No profiles found."
             throw FailedToLoadEmbedException(embed)
         }
@@ -418,6 +422,12 @@ object ApplicationService {
                 ign
             }
         } (${statsOverview.profileName})"
+        embed.timestamp = statsOverviewResponse.timestamp
+        if(statsOverviewResponse is Stale) {
+            embed.footer {
+                text = "Error connecting to Hypixel API, serving stale cache data"
+            }
+        }
 
         return embed
     }

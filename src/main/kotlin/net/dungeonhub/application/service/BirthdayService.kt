@@ -1,9 +1,11 @@
 package net.dungeonhub.application.service
 
+import dev.kord.common.entity.Permission
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.createMessage
 import dev.kord.core.entity.channel.GuildMessageChannel
 import dev.kord.rest.builder.message.EmbedBuilder
+import dev.kordex.core.utils.permissionsForMember
 import dev.kordex.core.utils.scheduling.Scheduler
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -31,10 +33,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.ExperimentalTime
 
 @OnStart
-@OptIn(ExperimentalTime::class)
 object BirthdayService : StartupListener {
     private const val BIRTHDAY_CALENDAR_URL =
         "https://cloud.dungeon-hub.net/remote.php/dav/public-calendars/g2tZRB2YpacJtAtt?export"
@@ -91,7 +91,21 @@ object BirthdayService : StartupListener {
         val todayBirthdays = getTodayBirthdays(Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()))
         val embeds: MutableList<EmbedBuilder> = mutableListOf()
 
+        val birthdayChannel = DiscordConnection.bot.kordRef.getChannelOf<GuildMessageChannel>(Snowflake(BIRTHDAYS_CHANNEL))
+
+        if(birthdayChannel == null) {
+            logger.error("Couldn't find the birthday channel.")
+            return
+        }
+
         for (birthday in todayBirthdays) {
+            val birthdayUser = DiscordConnection.bot.kordRef.getUser(Snowflake(birthday.userId))?.asMemberOrNull(birthdayChannel.guildId)
+
+            if (birthdayUser == null || !birthdayChannel.permissionsForMember(birthdayUser).contains(Permission.ViewChannel)) {
+                logger.error("Birthday user doesn't have access to the birthday channel. Skipping ${birthday.userId}/${birthdayUser?.effectiveName} with permissions ${birthdayUser?.let { birthdayChannel.permissionsForMember(it) }}.")
+                continue
+            }
+
             val embed = EmbedBuilder()
             embed.color(EmbedColor.Positive)
             embed.title = birthday.eventName
@@ -111,11 +125,10 @@ object BirthdayService : StartupListener {
         }
 
         if (embeds.isNotEmpty()) {
-            DiscordConnection.bot.kordRef.getChannelOf<GuildMessageChannel>(Snowflake(BIRTHDAYS_CHANNEL))
-                ?.createMessage {
-                    this.content = "<@&$BIRTHDAY_PING_ROLE>"
-                    this.embeds = embeds
-                }
+            birthdayChannel.createMessage {
+                this.content = "<@&$BIRTHDAY_PING_ROLE>"
+                this.embeds = embeds
+            }
         }
     }
 

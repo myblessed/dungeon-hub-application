@@ -63,7 +63,7 @@ class TicketPlaceholders(
 
     val skyblockProfiles = scheduler.async(start = CoroutineStart.LAZY) {
         ticketUserModel.await()?.minecraftId?.let {
-            hypixelApiConnection.getSkyblockProfiles(it)?.profiles
+            hypixelApiConnection.getSkyblockProfiles(it).valueOrNull?.profiles
         }
     }
 

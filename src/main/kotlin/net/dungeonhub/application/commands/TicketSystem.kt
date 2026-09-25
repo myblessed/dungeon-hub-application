@@ -41,8 +41,7 @@ import kotlinx.coroutines.launch
 import net.dungeonhub.application.connection.withNanos
 import net.dungeonhub.application.enums.EmbedColor
 import net.dungeonhub.application.enums.ServerProperty
-import net.dungeonhub.application.listener.ticket.TicketCloseListener
-import net.dungeonhub.application.listener.ticket.TicketDeleteListener
+import net.dungeonhub.application.listener.ticket.*
 import net.dungeonhub.application.loader.LoadExtension
 import net.dungeonhub.application.misc.DhScheduler
 import net.dungeonhub.application.misc.TicketPlaceholders
@@ -158,7 +157,7 @@ class TicketSystem : Extension() {
 
                     val hypixelApiConnection = HypixelApiConnection().withCacheExpiration(5)
 
-                    val guild = hypixelApiConnection.getPlayerGuild(uuid)
+                    val guild = hypixelApiConnection.getPlayerGuild(uuid).valueOrNull
 
                     val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
                         .withZone(ZoneId.systemDefault())
@@ -284,6 +283,49 @@ class TicketSystem : Extension() {
                     }
 
                     val embed = TicketCloseListener.closeTicket(member!!, event.interaction.channel.asChannelOf(), ticket)
+
+                    respond {
+                        embeds = mutableListOf(embed)
+                    }
+                }
+            }
+
+            ephemeralSubCommand {
+                name = Translations.Command.Ticket.Claim.name
+                description = Translations.Command.Ticket.Claim.description
+
+                action {
+                    val ticket = DiscordServerConnection.authenticated().findTickets(guild!!.id.value.toLong(), channelId = event.interaction.channelId.value.toLong())?.firstOrNull()
+
+                    val ticketChannel = channel.asChannelOfOrNull<TextChannel>()
+
+                    val claimAction = resolveTicketClaimAction(
+                        ticketExists = ticket != null && ticketChannel != null,
+                        claimable = ticket?.ticketPanel?.claimable == true,
+                        state = ticket?.state,
+                        hasClaimer = ticket?.claimer != null,
+                    )
+
+                    val embed = when (claimAction) {
+                        TicketClaimAction.NotATicket -> buildEmbed {
+                            description = "This isn't a ticket channel!"
+                            color(EmbedColor.Negative)
+                        }
+                        TicketClaimAction.NotClaimable -> buildEmbed {
+                            description = "This panel doesn't allow ticket claiming!"
+                            color(EmbedColor.Negative)
+                        }
+                        TicketClaimAction.Deleted -> buildEmbed {
+                            description = "This ticket is already deleted!"
+                            color(EmbedColor.Negative)
+                        }
+                        TicketClaimAction.NotOpen -> buildEmbed {
+                            description = "This ticket isn't open!"
+                            color(EmbedColor.Negative)
+                        }
+                        TicketClaimAction.Claim -> TicketClaimListener.claimTicket(member!!.asMember(), ticket!!, ticketChannel!!)
+                        TicketClaimAction.Unclaim -> TicketClaimListener.unclaimTicket(member!!.asMember(), ticket!!, ticketChannel!!)
+                    }
 
                     respond {
                         embeds = mutableListOf(embed)

@@ -18,7 +18,7 @@ import net.dungeonhub.application.loader.OnStart
 import net.dungeonhub.application.loader.StartupListener
 import net.dungeonhub.application.misc.DhScheduler
 import net.dungeonhub.connection.DiscordServerConnection
-import net.dungeonhub.connection.DiscordUserConnection
+import net.dungeonhub.connection.StatsConnection
 import net.dungeonhub.hypixel.service.FormattingService
 import org.slf4j.LoggerFactory
 import java.time.ZonedDateTime
@@ -76,7 +76,7 @@ object ServerStatsService : StartupListener {
     }
 
     private suspend fun updateStatChannels(guild: Guild, channels: List<Pair<Long, String>>) {
-        val linkedUsers = DiscordUserConnection.authenticated().countLinkedUsers() ?: 0
+        val linkedUsers = StatsConnection.authenticated().getGlobalStats()?.linkedUsers ?: 0
         val spentMoney = try {
             FormattingService.makeNumberReadable(
                 DiscordServerConnection.authenticated().getTotalAmountOfMoneySpent(guild.id.value.toLong())

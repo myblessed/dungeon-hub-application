@@ -41,167 +41,161 @@ class TicketClaimListener : Extension() {
 
                 val ticket = DiscordServerConnection.authenticated().findTickets(event.interaction.guildId.value.toLong(), channelId = event.interaction.channelId.value.toLong())?.firstOrNull()
 
-                if(ticket == null) {
-                    response.respond {
-                        addEmbed {
-                            description = "This isn't a ticket channel!"
-                            color(EmbedColor.Negative)
-                        }
-                    }
-                    return@action
-                }
+                val claimAction = resolveTicketClaimAction(
+                    ticketExists = ticket != null,
+                    claimable = ticket?.ticketPanel?.claimable == true,
+                    state = ticket?.state,
+                    hasClaimer = ticket?.claimer != null,
+                )
 
-                if(!ticket.ticketPanel.claimable) {
-                    response.respond {
-                        addEmbed {
-                            description = "This panel doesn't allow ticket claiming!"
-                            color(EmbedColor.Negative)
-                        }
+                val embed = when (claimAction) {
+                    TicketClaimAction.NotATicket -> buildEmbed {
+                        description = "This isn't a ticket channel!"
+                        color(EmbedColor.Negative)
                     }
-                    return@action
-                }
-
-                if(ticket.state == TicketState.Deleted) {
-                    response.respond {
-                        addEmbed {
-                            description = "This ticket is already deleted!"
-                            color(EmbedColor.Negative)
-                        }
+                    TicketClaimAction.NotClaimable -> buildEmbed {
+                        description = "This panel doesn't allow ticket claiming!"
+                        color(EmbedColor.Negative)
                     }
-                    return@action
+                    TicketClaimAction.Deleted -> buildEmbed {
+                        description = "This ticket is already deleted!"
+                        color(EmbedColor.Negative)
+                    }
+                    TicketClaimAction.NotOpen -> buildEmbed {
+                        description = "This ticket isn't open!"
+                        color(EmbedColor.Negative)
+                    }
+                    TicketClaimAction.Claim -> claimTicket(event.interaction.user, ticket!!, event.interaction.channel.asChannelOf())
+                    TicketClaimAction.Unclaim -> unclaimTicket(event.interaction.user, ticket!!, event.interaction.channel.asChannelOf())
                 }
 
                 response.respond {
-                    embeds = mutableListOf(
-                        if (ticket.claimer != null) {
-                            unclaimTicket(event.interaction.user, ticket, event.interaction.channel.asChannelOf())
-                        } else {
-                            claimTicket(event.interaction.user, ticket, event.interaction.channel.asChannelOf())
-                        }
-                    )
+                    embeds = mutableListOf(embed)
                 }
             }
         }
     }
 
-    suspend fun claimTicket(member: Member, ticket: TicketModel, textChannel: TextChannel): EmbedBuilder {
-        if(!member.isAllowedToClaim(ticket)) {
-            return buildEmbed {
-                description = "You're not allowed to claim this ticket!"
-                color(EmbedColor.Negative)
-            }
-        }
-
-        val updatedTicket = updateTicketState(ticket, member)
-
-        if(updatedTicket == null) {
-            return buildEmbed {
-                description = "Couldn't claim the ticket!"
-                color(EmbedColor.Negative)
-            }
-        }
-
-        TicketSystem.logTicketAction(member.guild, ticket) {
-            description = "Ticket #${ticket.id} claimed by ${member.mention}."
-        }
-
-        TicketSystem.scheduler.launch {
-            updateTicketChannel(updatedTicket, textChannel)
-
-            val updateTime = TicketSystem.updateTicketName(updatedTicket, member, textChannel)
-
-            // TODO configurable message
-            textChannel.createMessage {
-                content = "<@${ticket.user.id}>, your ticket has been claimed by ${member.mention}."
-                addEmbed {
-                    description = "Ticket claimed by ${member.mention}.${
-                        if (updateTime != null) {
-                            "\n-# The ticket name will be updated in $updateTime due to ratelimits."
-                        } else {
-                            ""
-                        }
-                    }"
-                    color(EmbedColor.Default)
+    companion object {
+        suspend fun claimTicket(member: Member, ticket: TicketModel, textChannel: TextChannel): EmbedBuilder {
+            if(!member.isAllowedToClaim(ticket)) {
+                return buildEmbed {
+                    description = "You're not allowed to claim this ticket!"
+                    color(EmbedColor.Negative)
                 }
+            }
 
-                actionRow {
-                    TicketSystem.getClaimedButtons().forEach {
-                        it()
+            val updatedTicket = updateTicketState(ticket, member)
+
+            if(updatedTicket == null) {
+                return buildEmbed {
+                    description = "Couldn't claim the ticket!"
+                    color(EmbedColor.Negative)
+                }
+            }
+
+            TicketSystem.logTicketAction(member.guild, ticket) {
+                description = "Ticket #${ticket.id} claimed by ${member.mention}."
+            }
+
+            TicketSystem.scheduler.launch {
+                updateTicketChannel(updatedTicket, textChannel)
+
+                val updateTime = TicketSystem.updateTicketName(updatedTicket, member, textChannel)
+
+                // TODO configurable message
+                textChannel.createMessage {
+                    content = "<@${ticket.user.id}>, your ticket has been claimed by ${member.mention}."
+                    addEmbed {
+                        description = "Ticket claimed by ${member.mention}.${
+                            if (updateTime != null) {
+                                "\n-# The ticket name will be updated in $updateTime due to ratelimits."
+                            } else {
+                                ""
+                            }
+                        }"
+                        color(EmbedColor.Default)
+                    }
+
+                    actionRow {
+                        TicketSystem.getClaimedButtons().forEach {
+                            it()
+                        }
                     }
                 }
             }
-        }
 
-        return buildEmbed {
-            description = "You claimed the ticket."
-            color(EmbedColor.Positive)
-        }
-    }
-
-    suspend fun unclaimTicket(member: Member, ticket: TicketModel, textChannel: TextChannel): EmbedBuilder {
-        if(!member.isAllowedToUnclaim(ticket)) {
             return buildEmbed {
-                description = "You're not allowed to unclaim this ticket!"
-                color(EmbedColor.Negative)
+                description = "You claimed the ticket."
+                color(EmbedColor.Positive)
             }
         }
 
-        val updatedTicket = updateTicketState(ticket, null)
-
-        if(updatedTicket == null) {
-            return buildEmbed {
-                description = "Couldn't unclaim the ticket!"
-                color(EmbedColor.Negative)
-            }
-        }
-
-        TicketSystem.logTicketAction(member.guild, ticket) {
-            description = "Ticket #${ticket.id} unclaimed by ${member.mention}."
-        }
-
-        TicketSystem.scheduler.launch {
-            updateTicketChannel(updatedTicket, textChannel)
-
-            val updateTime = TicketSystem.updateTicketName(updatedTicket, member, textChannel)
-
-            textChannel.createMessage {
-                addEmbed {
-                    description = "Ticket unclaimed by ${member.mention}.${
-                        if (updateTime != null) {
-                            "\n-# The ticket name will be updated in $updateTime due to ratelimits."
-                        } else {
-                            ""
-                        }
-                    }"
-                    color(EmbedColor.Default)
+        suspend fun unclaimTicket(member: Member, ticket: TicketModel, textChannel: TextChannel): EmbedBuilder {
+            if(!member.isAllowedToUnclaim(ticket)) {
+                return buildEmbed {
+                    description = "You're not allowed to unclaim this ticket!"
+                    color(EmbedColor.Negative)
                 }
             }
-        }
 
-        return buildEmbed {
-            description = "You unclaimed the ticket."
-            color(EmbedColor.Positive)
-        }
-    }
+            val updatedTicket = updateTicketState(ticket, null)
 
-    suspend fun updateTicketState(ticket: TicketModel, member: Member?): TicketModel? {
-        val updateModel = ticket.getUpdateModel()
-        updateModel.claimer = member?.id?.value?.toLong()
-
-        return TicketConnection[ticket.ticketPanel.discordServer, ticket.ticketPanel].authenticated().updateTicket(ticket.id, updateModel)
-    }
-
-    suspend fun updateTicketChannel(ticket: TicketModel, textChannel: TextChannel) {
-        textChannel.edit {
-            permissionOverwrites?.clear()
-            updateTicketPermissions(ticket.ticketPanel, ticket)
-
-            val categories = if (ticket.state in listOf(TicketState.Creating, TicketState.Open)) {
-                ticket.ticketPanel.openCategories
-            } else {
-                ticket.ticketPanel.closedCategories
+            if(updatedTicket == null) {
+                return buildEmbed {
+                    description = "Couldn't unclaim the ticket!"
+                    color(EmbedColor.Negative)
+                }
             }
-            TicketSystem.getCategory(categories)?.let { parentId = Snowflake(it) }
+
+            TicketSystem.logTicketAction(member.guild, ticket) {
+                description = "Ticket #${ticket.id} unclaimed by ${member.mention}."
+            }
+
+            TicketSystem.scheduler.launch {
+                updateTicketChannel(updatedTicket, textChannel)
+
+                val updateTime = TicketSystem.updateTicketName(updatedTicket, member, textChannel)
+
+                textChannel.createMessage {
+                    addEmbed {
+                        description = "Ticket unclaimed by ${member.mention}.${
+                            if (updateTime != null) {
+                                "\n-# The ticket name will be updated in $updateTime due to ratelimits."
+                            } else {
+                                ""
+                            }
+                        }"
+                        color(EmbedColor.Default)
+                    }
+                }
+            }
+
+            return buildEmbed {
+                description = "You unclaimed the ticket."
+                color(EmbedColor.Positive)
+            }
+        }
+
+        suspend fun updateTicketState(ticket: TicketModel, member: Member?): TicketModel? {
+            val updateModel = ticket.getUpdateModel()
+            updateModel.claimer = member?.id?.value?.toLong()
+
+            return TicketConnection[ticket.ticketPanel.discordServer, ticket.ticketPanel].authenticated().updateTicket(ticket.id, updateModel)
+        }
+
+        suspend fun updateTicketChannel(ticket: TicketModel, textChannel: TextChannel) {
+            textChannel.edit {
+                permissionOverwrites?.clear()
+                updateTicketPermissions(ticket.ticketPanel, ticket)
+
+                val categories = if (ticket.state in listOf(TicketState.Creating, TicketState.Open)) {
+                    ticket.ticketPanel.openCategories
+                } else {
+                    ticket.ticketPanel.closedCategories
+                }
+                TicketSystem.getCategory(categories)?.let { parentId = Snowflake(it) }
+            }
         }
     }
 }

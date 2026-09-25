@@ -14,7 +14,7 @@ import net.dungeonhub.application.loader.OnStart
 import net.dungeonhub.application.loader.StartupListener
 import net.dungeonhub.application.misc.DhScheduler
 import net.dungeonhub.connection.DiscordServerConnection
-import net.dungeonhub.connection.DiscordUserConnection
+import net.dungeonhub.connection.StatsConnection
 import net.dungeonhub.hypixel.service.FormattingService
 import org.slf4j.LoggerFactory
 import java.time.Duration
@@ -30,7 +30,7 @@ object AppearanceService : StartupListener {
     private var currentAppearance = 0
     private val possibleAppearances: List<Pair<AppearanceType, suspend () -> String>> = listOf(
         AppearanceType.Custom to {
-            "Handling ${DiscordUserConnection.authenticated().countLinkedUsers() ?: 0} linked users!"
+            "Handling ${StatsConnection.authenticated().getGlobalStats()?.linkedUsers ?: 0} linked users!"
         },
         AppearanceType.Watching to {
             "carriers on ${bot.kordRef.guilds.count()} servers"
